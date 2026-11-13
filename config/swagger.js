@@ -14,8 +14,12 @@ const options = {
 
         servers: [
             {
+                url: "https://insurance-policy-management-d6no.onrender.com",
+                description: "Production server (Render)"
+            },
+            {
                 url: "http://localhost:5000",
-                description: "Local Development Server"
+                description: "Local development server"
             }
         ]
     },
