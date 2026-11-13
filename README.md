@@ -15,6 +15,7 @@ A Node.js, Express.js, and MongoDB-based Insurance Policy Management API that su
 
 ## Tech Stack
 
+- Javascript
 - Node.js
 - Express.js
 - MongoDB
