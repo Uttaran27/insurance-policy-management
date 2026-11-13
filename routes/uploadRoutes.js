@@ -2,21 +2,25 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 
 const { uploadFile } = require("../controllers/uploadController");
 
 const router = express.Router();
 
-// Configure where uploaded files will be stored
+// Create uploads directory automatically if it doesn't exist
+const uploadDir = path.join(__dirname, "../uploads");
+
+fs.mkdirSync(uploadDir, { recursive: true });
+
+// Configure Multer storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "uploads/");
+        cb(null, uploadDir);
     },
-    filename: (req, file, cb) => {
-        const uniqueName =
-            Date.now() + "-" + file.originalname;
 
-        cb(null, uniqueName);
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + "-" + file.originalname);
     }
 });
 
@@ -28,7 +32,7 @@ const fileFilter = (req, file, cb) => {
     if (allowedExtensions.includes(extension)) {
         cb(null, true);
     } else {
-        cb(new Error("Only XLSX and CSV files are allowed"));
+        cb(new Error("Only Excel and CSV files are allowed!"));
     }
 };
 
@@ -40,32 +44,6 @@ const upload = multer({
     }
 });
 
-/**
- * @swagger
- * /api/upload:
- *   post:
- *     summary: Upload an Excel or CSV file
- *     tags: [File Upload]
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - file
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *     responses:
- *       200:
- *         description: File processed successfully
- *       400:
- *         description: Invalid file
- *       500:
- *         description: Processing failed
- */
 router.post("/", upload.single("file"), uploadFile);
 
 module.exports = router;
