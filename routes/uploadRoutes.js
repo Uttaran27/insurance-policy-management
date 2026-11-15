@@ -3,6 +3,7 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 
 const { uploadFile } = require("../controllers/uploadController");
 
@@ -22,7 +23,11 @@ const storage = multer.diskStorage({
     },
 
     filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${file.originalname}`;
+        const extension = path.extname(file.originalname).toLowerCase();
+        const safeExtension = extension === ".xlsx" || extension === ".csv"
+            ? extension
+            : "";
+        const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
         cb(null, uniqueName);
     }
 });
@@ -36,7 +41,9 @@ const fileFilter = (req, file, cb) => {
     if (allowedExtensions.includes(extension)) {
         cb(null, true);
     } else {
-        cb(new Error("Only Excel (.xlsx) and CSV (.csv) files are allowed!"));
+        const error = new Error("Only Excel (.xlsx) and CSV (.csv) files are allowed");
+        error.status = 400;
+        cb(error);
     }
 };
 

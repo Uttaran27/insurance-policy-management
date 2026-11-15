@@ -24,6 +24,9 @@ const scheduledPostSchema = new mongoose.Schema(
     }
 );
 
+scheduledPostSchema.index({ status: 1, scheduledAt: 1 });
+scheduledPostSchema.index({ status: 1, updatedAt: 1 });
+
 module.exports = mongoose.model(
     "ScheduledPost",
     scheduledPostSchema,

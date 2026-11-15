@@ -1,10 +1,14 @@
 
 const ScheduledPost = require("../models/ScheduledPost");
+const { parseScheduledInstant } = require("../utils/scheduleTime");
 
-// Schedule a message for a particular date and time
+// Schedule a message for a particular date and time in IST (UTC+05:30).
 const schedulePost = async (req, res) => {
     try {
-        const { message, day, time } = req.body;
+        const message = typeof req.body.message === "string"
+            ? req.body.message.trim()
+            : "";
+        const { day, time } = req.body;
 
         if (!message || !day || !time) {
             return res.status(400).json({
@@ -13,29 +17,16 @@ const schedulePost = async (req, res) => {
             });
         }
 
-        // Validate the expected date and time formats
-        if (
-            !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
-            !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
-        ) {
+        const parsed = parseScheduledInstant(day, time);
+
+        if (parsed.error) {
             return res.status(400).json({
                 success: false,
-                message: "Use day format YYYY-MM-DD and time format HH:mm"
+                message: parsed.error
             });
         }
 
-        // Interpret the supplied date and time as Indian Standard Time
-        const scheduledAt = new Date(`${day}T${time}:00+05:30`);
-
-        if (
-            Number.isNaN(scheduledAt.getTime()) ||
-            scheduledAt.toISOString().slice(0, 10) !== day
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Please provide a valid date"
-            });
-        }
+        const { scheduledAt } = parsed;
 
         if (scheduledAt <= new Date()) {
             return res.status(400).json({
@@ -60,7 +51,7 @@ const schedulePost = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Something went wrong"
         });
     }
 };

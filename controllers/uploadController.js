@@ -2,6 +2,7 @@
 const { Worker } = require("worker_threads");
 const path = require("path");
 const fs = require("fs");
+const { beginImport, endImport } = require("../services/importActivity");
 
 const uploadFile = (req, res) => {
     if (!req.file) {
@@ -11,15 +12,29 @@ const uploadFile = (req, res) => {
         });
     }
 
-    const worker = new Worker(
-        path.join(__dirname, "../workers/importWorker.js"),
-        {
-            workerData: {
-                filePath: req.file.path,
-                mongoUri: process.env.MONGO_URI
+    beginImport();
+
+    let worker;
+
+    try {
+        worker = new Worker(
+            path.join(__dirname, "../workers/importWorker.js"),
+            {
+                workerData: {
+                    filePath: req.file.path,
+                    mongoUri: process.env.MONGO_URI
+                }
             }
-        }
-    );
+        );
+    } catch (error) {
+        endImport();
+        console.error("Worker start error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Import failed"
+        });
+    }
 
     let workerResult = null;
     let workerError = null;
@@ -33,6 +48,8 @@ const uploadFile = (req, res) => {
     });
 
     worker.on("exit", (code) => {
+        endImport();
+
         // Remove the temporary uploaded file.
         fs.unlink(req.file.path, (error) => {
             if (error) {
@@ -43,9 +60,10 @@ const uploadFile = (req, res) => {
         if (res.headersSent) return;
 
         if (workerError) {
+            console.error("Import worker error:", workerError);
             return res.status(500).json({
                 success: false,
-                message: workerError.message
+                message: "Import failed"
             });
         }
 
@@ -53,6 +71,13 @@ const uploadFile = (req, res) => {
             return res.status(500).json({
                 success: false,
                 message: "Worker stopped unexpectedly"
+            });
+        }
+
+        if (workerResult.fatal) {
+            return res.status(workerResult.statusCode || 500).json({
+                success: false,
+                message: workerResult.message || "Import failed"
             });
         }
 
