@@ -52,6 +52,9 @@ insurance-policy-management/
 │   ├── uploadController.js
 │   ├── policyController.js
 │   └── postController.js
+├── middleware/
+│   ├── errorHandler.js
+│   └── requireApiKey.js
 ├── models/
 │   ├── Agent.js
 │   ├── User.js
@@ -69,7 +72,11 @@ insurance-policy-management/
 │   └── importWorker.js
 ├── services/
 │   ├── cpuMonitor.js
+│   ├── importActivity.js
 │   └── scheduler.js
+├── utils/
+│   ├── pagination.js
+│   └── scheduleTime.js
 ├── uploads/
 ├── sample-data/
 ├── app.js
@@ -151,7 +158,7 @@ https://insurance-policy-management-d6no.onrender.com/api-docs
 
 You can test the following endpoints:
 
-1. **Policy Search:** Use `GET /api/policies/search/rohan.sharma` to retrieve that exact username and the user's associated policies. Add the `x-api-key` header.
+1. **Policy Search:** Use `GET /api/policies/search/lura.lucca` to retrieve that username and the user's associated policies. The username is the imported first name, lowercased, with spaces replaced by dots (`Lura Lucca` becomes `lura.lucca`). Add the `x-api-key` header.
 2. **User Policy Summary:** Use `GET /api/policies/users/summary` to retrieve users and their policy counts.
 3. **Excel/CSV Upload:** Use `POST /api/upload` to upload an Excel or CSV file.
 4. **Scheduled Messaging:** Use `POST /api/posts/schedule` to schedule a message for a particular date and time.
@@ -171,9 +178,22 @@ The upload endpoint processes records using Worker Threads and stores the data i
 5. Carriers
 6. Policies
 
-The uploaded file should contain the required column headers corresponding to the import mapping implemented in the worker.
+Each row must include `firstname`, `email`, and `policy_number`. The import also stores these columns when they are present:
 
-A sample Excel file is available in the `sample-data/` directory.
+- Agent: `agent`
+- Account: `account_name`, `account_type`
+- User: `address`, `phone`, `state`, `zip`, `city`, `gender`, `userType`, `primary`, `Applicant ID`, `dob`
+- Policy category (LOB): `category_name`
+- Carrier: `company_name`
+- Policy: `policy_start_date`, `policy_end_date`, `policy_mode`, `premium_amount`, `producer`, `policy_type`, `csr`
+
+`premium_amount_written`, `agency_id`, and `hasActive ClientPolicy` are ignored.
+
+The search username is built from `firstname`: lowercased, with each run of spaces replaced by a dot. `Lura Lucca` is stored and searched as `lura.lucca`.
+
+Uploading the same sheet again updates an existing user matched by username or email, and an existing policy matched by `policy_number`. Agents, accounts, categories, and carriers are reused when the name already exists.
+
+A sample CSV file is available at `sample-data/data-sheet - Node js Assesment (2) (1).csv`. Excel (`.xlsx`) uploads use the same column names.
 
 ## Scheduled Messaging
 
