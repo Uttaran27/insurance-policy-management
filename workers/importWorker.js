@@ -85,18 +85,36 @@ const assignIfPresent = (target, key, value) => {
     target[key] = value;
 };
 
+const logInsert = (collectionName, id) => {
+    console.log(`db ${collectionName} insert id=${id}`);
+};
+
+// Return the document from an upsert and log only a new insert.
+const documentFromUpsert = (result, collectionName) => {
+    const createdId = result?.lastErrorObject?.upserted;
+
+    if (createdId) {
+        logInsert(collectionName, createdId);
+    }
+
+    return result.value;
+};
+
 // Create a record if it doesn't exist, otherwise reuse it.
 const findOrCreate = async (Model, filter, data) => {
     try {
-        return await Model.findOneAndUpdate(
+        const result = await Model.findOneAndUpdate(
             filter,
             { $setOnInsert: data },
             {
                 upsert: true,
                 returnDocument: "after",
-                setDefaultsOnInsert: true
+                setDefaultsOnInsert: true,
+                includeResultMetadata: true
             }
         );
+
+        return documentFromUpsert(result, Model.collection.collectionName);
     } catch (error) {
         if (!isDuplicateKey(error)) {
             throw error;
@@ -142,7 +160,9 @@ const saveUser = async (userData) => {
     }
 
     try {
-        return await User.create(userData);
+        const user = await User.create(userData);
+        logInsert("users", user._id);
+        return user;
     } catch (error) {
         if (!isDuplicateKey(error)) {
             throw error;
@@ -388,7 +408,7 @@ const importFile = async () => {
                     policyData.carrierId = carrierId;
                 }
 
-                await Policy.findOneAndUpdate(
+                const policyResult = await Policy.findOneAndUpdate(
                     { policy_number: policyNumber },
                     {
                         $set: policyData,
@@ -398,9 +418,12 @@ const importFile = async () => {
                         upsert: true,
                         returnDocument: "after",
                         setDefaultsOnInsert: true,
-                        runValidators: true
+                        runValidators: true,
+                        includeResultMetadata: true
                     }
                 );
+
+                documentFromUpsert(policyResult, "policies");
 
                 importedRecords++;
             } catch (error) {
