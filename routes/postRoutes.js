@@ -11,7 +11,7 @@ const router = express.Router();
  * @swagger
  * /api/posts/schedule:
  *   post:
- *     summary: Schedule a message for a particular date and time
+ *     summary: Schedule a message for a date and time in IST (UTC+05:30)
  *     tags: [Scheduled Posts]
  *     requestBody:
  *       required: true

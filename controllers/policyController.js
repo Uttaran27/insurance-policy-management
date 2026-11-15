@@ -1,100 +1,116 @@
-
 const User = require("../models/User");
 const Policy = require("../models/Policy");
+const { readPage } = require("../utils/pagination");
 
-const LOB = require("../models/LOB");
-const Carrier = require("../models/Carrier");
-
-// Search policies using the user's first name
+// Search policies for one user by an exact username.
 const searchPoliciesByUsername = async (req, res) => {
     try {
+        const username = String(req.params.username || "").trim().toLowerCase();
 
-        console.error("SEARCH API HANDLER EXECUTED");
-        const { username } = req.params;
+        if (!username) {
+            return res.status(400).json({
+                success: false,
+                message: "Username is required"
+            });
+        }
 
-        // Search policies using the user's username
-        const users = await User.find({
-            username: {
-                $regex: username,
-                $options: "i"
-            }
-        });
+        const user = await User.findOne({ username });
 
+        console.log(`db users findOne found=${Boolean(user)}`);
 
-        console.error("Username received:", username);
-        console.error("Users found:", users.length);
-
-
-        if (users.length === 0) {
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found"
             });
         }
 
-        const userIds = users.map((user) => user._id);
+        const { page, limit, skip } = readPage(req.query);
+        const filter = { userId: user._id };
+        const totalPolicies = await Policy.countDocuments(filter);
 
-        const policies = await Policy.find({
-            userId: { $in: userIds }
-        })
+        const policies = await Policy.find(filter)
+            .skip(skip)
+            .limit(limit)
             .populate("userId")
             .populate("categoryId")
             .populate("carrierId");
 
+        console.log(
+            `db policies find page=${page} limit=${limit} totalPolicies=${totalPolicies}`
+        );
+
         return res.status(200).json({
             success: true,
-            totalPolicies: policies.length,
+            page,
+            limit,
+            totalPolicies,
             data: policies
         });
-
     } catch (error) {
         console.error("Policy search error:", error);
 
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Something went wrong"
         });
     }
 };
 
-
-// Get policies grouped by each user using MongoDB aggregation
+// Get a page of users with their policies.
 const getPoliciesByUser = async (req, res) => {
     try {
-        const result = await User.aggregate([
+        const { page, limit, skip } = readPage(req.query);
+
+        const [facet] = await User.aggregate([
+            { $sort: { firstName: 1, _id: 1 } },
             {
-                $lookup: {
-                    from: "policies",
-                    localField: "_id",
-                    foreignField: "userId",
-                    as: "policies"
-                }
-            },
-            {
-                $project: {
-                    firstName: 1,
-                    email: 1,
-                    phone: 1,
-                    totalPolicies: {
-                        $size: "$policies"
-                    },
-                    policies: 1
+                $facet: {
+                    metadata: [{ $count: "totalUsers" }],
+                    data: [
+                        { $skip: skip },
+                        { $limit: limit },
+                        {
+                            $lookup: {
+                                from: "policies",
+                                localField: "_id",
+                                foreignField: "userId",
+                                as: "policies"
+                            }
+                        },
+                        {
+                            $project: {
+                                firstName: 1,
+                                email: 1,
+                                phone: 1,
+                                totalPolicies: { $size: "$policies" },
+                                policies: 1
+                            }
+                        }
+                    ]
                 }
             }
         ]);
 
+        const totalUsers = facet?.metadata?.[0]?.totalUsers || 0;
+
+        console.log(
+            `db users aggregate page=${page} limit=${limit} totalUsers=${totalUsers}`
+        );
+
         return res.status(200).json({
             success: true,
-            totalUsers: result.length,
-            data: result
+            page,
+            limit,
+            totalUsers,
+            data: facet?.data || []
         });
-
     } catch (error) {
         console.error("Policy aggregation error:", error);
 
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Something went wrong"
         });
     }
 };

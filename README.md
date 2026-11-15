@@ -103,11 +103,20 @@ Create a `.env` file in the project root:
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/insurance_db
 NODE_ENV=development
+API_KEY=replace-with-a-long-random-string
+CORS_ORIGINS=http://localhost:5000
+ENABLE_CPU_RESTART=false
 ```
 
-For cloud deployment, configure `MONGO_URI` with your MongoDB Atlas connection string in Render's Environment settings.
+`API_KEY` is required. Send it on every `/api` request as the `x-api-key` header. Requests without a matching key are rejected.
 
-Never commit your `.env` file or expose database credentials.
+`CORS_ORIGINS` is a comma-separated list of extra browser origins allowed to call the API. Requests with no `Origin` header (curl, server-side clients) are allowed. The host that is serving the API is allowed too, so Swagger on that same host keeps working. `http://localhost:5000` and `http://127.0.0.1:5000` are always allowed.
+
+`ENABLE_CPU_RESTART=true` exits the process when system CPU reaches 70%. Leave it unset on Render. Under PM2 the exit is enabled automatically, and an in-flight import is not interrupted.
+
+For cloud deployment, configure `MONGO_URI`, `API_KEY`, and `CORS_ORIGINS` in the host's environment settings.
+
+Never commit your `.env` file or expose database credentials or the API key.
 
 ### 4. Start the application
 
@@ -128,9 +137,11 @@ The application will run at:
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/upload` | Upload Excel/CSV data |
-| GET | `/api/policies/search/:username` | Search policies by username |
-| GET | `/api/policies/users/summary` | Aggregate policies by user |
-| POST | `/api/posts/schedule` | Schedule a message |
+| GET | `/api/policies/search/:username` | Search policies by exact username (`page`, `limit`) |
+| GET | `/api/policies/users/summary` | Aggregate policies by user (`page`, `limit`) |
+| POST | `/api/posts/schedule` | Schedule a message for an IST date and time |
+
+All `/api` routes require the `x-api-key` header. `page` defaults to 1 and `limit` defaults to 20, with a maximum of 100.
 
 ## Testing the Live Application
 
@@ -140,7 +151,7 @@ https://insurance-policy-management-d6no.onrender.com/api-docs
 
 You can test the following endpoints:
 
-1. **Policy Search:** Use `GET /api/policies/search/rohan.sharma` to retrieve the user's details and associated policies.
+1. **Policy Search:** Use `GET /api/policies/search/rohan.sharma` to retrieve that exact username and the user's associated policies. Add the `x-api-key` header.
 2. **User Policy Summary:** Use `GET /api/policies/users/summary` to retrieve users and their policy counts.
 3. **Excel/CSV Upload:** Use `POST /api/upload` to upload an Excel or CSV file.
 4. **Scheduled Messaging:** Use `POST /api/posts/schedule` to schedule a message for a particular date and time.
@@ -169,8 +180,8 @@ A sample Excel file is available in the `sample-data/` directory.
 The scheduling API accepts:
 
 - `message`: Message content.
-- `day`: Scheduled date in `YYYY-MM-DD` format.
-- `time`: Scheduled time in `HH:mm` format.
+- `day`: Scheduled date in `YYYY-MM-DD` format, interpreted in IST (UTC+05:30).
+- `time`: Scheduled time in `HH:mm` format, interpreted in IST (UTC+05:30).
 
 Example request:
 
@@ -186,9 +197,9 @@ Scheduled messages are stored in MongoDB and processed automatically. Successful
 
 ## CPU Monitoring and PM2
 
-The application monitors CPU utilization periodically.
+The application monitors CPU utilization only when PM2 is the process manager, or when `ENABLE_CPU_RESTART=true`.
 
-When CPU usage reaches 70%, the application exits with a non-zero exit code. PM2 is configured to restart the application automatically in a local or self-managed deployment.
+When that mode is on and CPU usage reaches 70%, the application exits with a non-zero exit code so PM2 can restart it. The process stays up while a file import is running, so a spreadsheet parse does not kill itself. On Render, leave `ENABLE_CPU_RESTART` unset. Render is not PM2, and exiting there only crashes the service.
 
 Start using PM2:
 

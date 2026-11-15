@@ -12,7 +12,7 @@ const router = express.Router();
  * @swagger
  * /api/policies/search/{username}:
  *   get:
- *     summary: Search policies by username
+ *     summary: Search policies by exact username
  *     tags: [Policies]
  *     parameters:
  *       - in: path
@@ -20,7 +20,18 @@ const router = express.Router();
  *         required: true
  *         schema:
  *           type: string
- *         description: User's name
+ *         description: Exact username
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
  *     responses:
  *       200:
  *         description: Matching policies retrieved
@@ -35,6 +46,18 @@ router.get("/search/:username", searchPoliciesByUsername);
  *   get:
  *     summary: Get policies grouped by user
  *     tags: [Policies]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
  *     responses:
  *       200:
  *         description: Policies grouped by each user
