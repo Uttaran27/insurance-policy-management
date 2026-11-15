@@ -1,18 +1,20 @@
-
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
     {
-        firstName: { type: String, trim: true },
+        firstname: { type: String, trim: true },
         username: { type: String, trim: true, lowercase: true },
-        DOB: Date,
+        dob: Date,
         address: String,
         phone: String,
         state: String,
-        zipCode: String,
+        zip: String,
+        city: String,
         email: { type: String, trim: true, lowercase: true },
         gender: String,
         userType: String,
+        primary: String,
+        applicant_id: String,
         agentId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Agent"

@@ -47,6 +47,18 @@ const parseDate = (value, fieldName) => {
     return date;
 };
 
+const parseNumber = (value, fieldName) => {
+    if (!value) return null;
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+        throw new Error(`Invalid number in ${fieldName}: ${value}`);
+    }
+
+    return number;
+};
+
 const isDuplicateKey = (error) =>
     error?.code === 11000 || error?.cause?.code === 11000;
 
@@ -201,32 +213,31 @@ const importFile = async () => {
             const rowNumber = index + 2;
 
             try {
-                const firstName = getValue(row, "First Name");
-                const username = getValue(row, "Username").toLowerCase();
-                const email = getValue(row, "Email").toLowerCase();
-                const policyNumber = getValue(row, "Policy Number");
+                const firstname = getValue(row, "firstname");
+                const email = getValue(row, "email").toLowerCase();
+                const policyNumber = getValue(row, "policy_number");
 
                 if (!policyNumber) {
-                    throw new Error("Policy Number is required");
+                    throw new Error("policy_number is required");
                 }
 
-                if (!firstName) {
-                    throw new Error("First Name is required");
+                if (!firstname) {
+                    throw new Error("firstname is required");
                 }
 
-                if (!username && !email) {
-                    throw new Error("Username or Email is required");
+                if (!email) {
+                    throw new Error("email is required");
                 }
 
                 // 1. Create or reuse Agent.
                 let agentId = null;
-                const agentName = cleanLabel(getValue(row, "Agent Name"));
+                const agentName = cleanLabel(getValue(row, "agent"));
 
                 if (agentName) {
                     const agent = await findOrCreate(
                         Agent,
-                        { agentName },
-                        { agentName }
+                        { agent: agentName },
+                        { agent: agentName }
                     );
 
                     agentId = agent._id;
@@ -234,13 +245,18 @@ const importFile = async () => {
 
                 // 2. Create or reuse Account.
                 let accountId = null;
-                const accountName = cleanLabel(getValue(row, "Account Name"));
+                const accountName = cleanLabel(getValue(row, "account_name"));
+                const accountType = cleanLabel(getValue(row, "account_type"));
 
                 if (accountName) {
+                    const accountData = { account_name: accountName };
+
+                    assignIfPresent(accountData, "account_type", accountType);
+
                     const account = await findOrCreate(
                         Account,
-                        { accountName },
-                        { accountName }
+                        { account_name: accountName },
+                        accountData
                     );
 
                     accountId = account._id;
@@ -248,21 +264,27 @@ const importFile = async () => {
 
                 // 3. Create or reuse User. Empty cells are omitted so a
                 // partial re-import does not wipe stored values.
-                const userData = { firstName };
+                const username = firstname.toLowerCase().replace(/\s+/g, ".");
+                const userData = { firstname, email, username };
 
-                assignIfPresent(userData, "username", username);
-                assignIfPresent(userData, "email", email);
-                assignIfPresent(userData, "address", getValue(row, "Address"));
-                assignIfPresent(userData, "phone", getValue(row, "Phone"));
-                assignIfPresent(userData, "state", getValue(row, "State"));
-                assignIfPresent(userData, "zipCode", getValue(row, "Zip Code"));
-                assignIfPresent(userData, "gender", getValue(row, "Gender"));
-                assignIfPresent(userData, "userType", getValue(row, "User Type"));
+                assignIfPresent(userData, "address", getValue(row, "address"));
+                assignIfPresent(userData, "phone", getValue(row, "phone"));
+                assignIfPresent(userData, "state", getValue(row, "state"));
+                assignIfPresent(userData, "zip", getValue(row, "zip"));
+                assignIfPresent(userData, "city", getValue(row, "city"));
+                assignIfPresent(userData, "gender", getValue(row, "gender"));
+                assignIfPresent(userData, "userType", getValue(row, "userType"));
+                assignIfPresent(userData, "primary", getValue(row, "primary"));
+                assignIfPresent(
+                    userData,
+                    "applicant_id",
+                    getValue(row, "Applicant ID")
+                );
 
-                const dob = parseDate(getValue(row, "DOB"), "DOB");
+                const dob = parseDate(getValue(row, "dob"), "dob");
 
                 if (dob) {
-                    userData.DOB = dob;
+                    userData.dob = dob;
                 }
 
                 if (agentId) {
@@ -281,7 +303,7 @@ const importFile = async () => {
 
                 // 4. Create or reuse Policy Category.
                 let categoryId = null;
-                const categoryName = cleanLabel(getValue(row, "Policy Category"));
+                const categoryName = cleanLabel(getValue(row, "category_name"));
 
                 if (categoryName) {
                     const category = await findOrCreate(
@@ -295,7 +317,7 @@ const importFile = async () => {
 
                 // 5. Create or reuse Policy Carrier.
                 let carrierId = null;
-                const companyName = cleanLabel(getValue(row, "Company Name"));
+                const companyName = cleanLabel(getValue(row, "company_name"));
 
                 if (companyName) {
                     const carrier = await findOrCreate(
@@ -314,21 +336,49 @@ const importFile = async () => {
                 };
 
                 const policyStartDate = parseDate(
-                    getValue(row, "Policy Start Date"),
-                    "Policy Start Date"
+                    getValue(row, "policy_start_date"),
+                    "policy_start_date"
                 );
                 const policyEndDate = parseDate(
-                    getValue(row, "Policy End Date"),
-                    "Policy End Date"
+                    getValue(row, "policy_end_date"),
+                    "policy_end_date"
+                );
+                const policyMode = parseNumber(
+                    getValue(row, "policy_mode"),
+                    "policy_mode"
+                );
+                const premiumAmount = parseNumber(
+                    getValue(row, "premium_amount"),
+                    "premium_amount"
                 );
 
                 if (policyStartDate) {
-                    policyData.policyStartDate = policyStartDate;
+                    policyData.policy_start_date = policyStartDate;
                 }
 
                 if (policyEndDate) {
-                    policyData.policyEndDate = policyEndDate;
+                    policyData.policy_end_date = policyEndDate;
                 }
+
+                if (policyMode !== null) {
+                    policyData.policy_mode = policyMode;
+                }
+
+                if (premiumAmount !== null) {
+                    policyData.premium_amount = premiumAmount;
+                }
+
+                assignIfPresent(
+                    policyData,
+                    "producer",
+                    cleanLabel(getValue(row, "producer"))
+                );
+                assignIfPresent(
+                    policyData,
+                    "policy_type",
+                    cleanLabel(getValue(row, "policy_type"))
+                );
+                assignIfPresent(policyData, "csr", cleanLabel(getValue(row, "csr")));
 
                 if (categoryId) {
                     policyData.categoryId = categoryId;
@@ -339,10 +389,10 @@ const importFile = async () => {
                 }
 
                 await Policy.findOneAndUpdate(
-                    { policyNumber },
+                    { policy_number: policyNumber },
                     {
                         $set: policyData,
-                        $setOnInsert: { policyNumber }
+                        $setOnInsert: { policy_number: policyNumber }
                     },
                     {
                         upsert: true,

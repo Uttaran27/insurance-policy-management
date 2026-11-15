@@ -79,6 +79,24 @@ const syncModelIndexes = async (model) => {
     }
 };
 
+const dropIndexByKey = async (collection, key) => {
+    try {
+        const indexes = await collection.indexes();
+        const existing = indexes.find((index) => sameKey(index.key, key));
+
+        if (!existing || existing.name === "_id_") {
+            return;
+        }
+
+        await collection.dropIndex(existing.name);
+    } catch (error) {
+        console.error(
+            `Index drop failed for ${collection.collectionName} ${JSON.stringify(key)}:`,
+            error.message
+        );
+    }
+};
+
 const ensureIndex = async (collection, key, options) => {
     try {
         const indexes = await collection.indexes();
@@ -119,16 +137,20 @@ const ensureIntegrityIndexes = async () => {
         name: "email_unique"
     });
 
-    await ensureIndex(Agent.collection, { agentName: 1 }, {
+    await dropIndexByKey(Agent.collection, { agentName: 1 });
+    await dropIndexByKey(Account.collection, { accountName: 1 });
+    await dropIndexByKey(Policy.collection, { policyNumber: 1 });
+
+    await ensureIndex(Agent.collection, { agent: 1 }, {
         unique: true,
         collation: NAME_COLLATION,
-        name: "agentName_unique_ci"
+        name: "agent_unique_ci"
     });
 
-    await ensureIndex(Account.collection, { accountName: 1 }, {
+    await ensureIndex(Account.collection, { account_name: 1 }, {
         unique: true,
         collation: NAME_COLLATION,
-        name: "accountName_unique_ci"
+        name: "account_name_unique_ci"
     });
 
     await ensureIndex(LOB.collection, { category_name: 1 }, {

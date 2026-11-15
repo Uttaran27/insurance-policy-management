@@ -63,7 +63,7 @@ const getPoliciesByUser = async (req, res) => {
         const { page, limit, skip } = readPage(req.query);
 
         const [facet] = await User.aggregate([
-            { $sort: { firstName: 1, _id: 1 } },
+            { $sort: { firstname: 1, _id: 1 } },
             {
                 $facet: {
                     metadata: [{ $count: "totalUsers" }],
@@ -80,7 +80,7 @@ const getPoliciesByUser = async (req, res) => {
                         },
                         {
                             $project: {
-                                firstName: 1,
+                                firstname: 1,
                                 email: 1,
                                 phone: 1,
                                 totalPolicies: { $size: "$policies" },
