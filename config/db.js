@@ -11,6 +11,19 @@ const ScheduledPost = require("../models/ScheduledPost");
 
 const NAME_COLLATION = { locale: "en", strength: 2 };
 
+const mongoTarget = (mongoUri) => {
+    const parsed = new URL(
+        mongoUri
+            .replace("mongodb+srv://", "https://")
+            .replace("mongodb://", "https://")
+    );
+
+    return {
+        db: mongoose.connection.name,
+        host: parsed.hostname
+    };
+};
+
 const connectDB = async () => {
     try {
         const mongoUri = process.env.MONGO_URI;
@@ -29,11 +42,14 @@ const connectDB = async () => {
         });
 
         await ensureIntegrityIndexes();
+        console.log("db indexes ready");
+
         await syncModelIndexes(Policy);
         await syncModelIndexes(Message);
         await syncModelIndexes(ScheduledPost);
 
-        console.log("MongoDB connected successfully!");
+        const target = mongoTarget(mongoUri);
+        console.log(`MongoDB connected db=${target.db} host=${target.host}`);
     } catch (error) {
         console.error("MongoDB connection error:", error.message);
         process.exit(1);

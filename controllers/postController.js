@@ -40,6 +40,10 @@ const schedulePost = async (req, res) => {
             scheduledAt
         });
 
+        console.log(
+            `db scheduledposts insert id=${scheduledPost._id} scheduledAt=${scheduledPost.scheduledAt.toISOString()}`
+        );
+
         return res.status(201).json({
             success: true,
             message: "Message scheduled successfully",

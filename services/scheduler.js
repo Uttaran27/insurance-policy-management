@@ -22,7 +22,7 @@ const processScheduledPosts = async () => {
     try {
         const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS);
 
-        await ScheduledPost.updateMany(
+        const resetResult = await ScheduledPost.updateMany(
             {
                 status: "processing",
                 $or: [
@@ -32,6 +32,12 @@ const processScheduledPosts = async () => {
             },
             { $set: { status: "pending" } }
         );
+
+        if (resetResult.modifiedCount > 0) {
+            console.log(
+                `db scheduledposts updateMany modified=${resetResult.modifiedCount}`
+            );
+        }
 
         while (true) {
             // Claim one pending message whose scheduled time has arrived.
@@ -82,7 +88,10 @@ const processScheduledPosts = async () => {
                     $set: { status: "failed" }
                 });
 
-                console.error("Message execution failed:", error.message);
+                console.error(
+                    `Message execution failed: ${scheduledPost._id}`,
+                    error.message
+                );
             }
         }
     } catch (error) {

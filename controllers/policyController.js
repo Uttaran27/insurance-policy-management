@@ -16,6 +16,8 @@ const searchPoliciesByUsername = async (req, res) => {
 
         const user = await User.findOne({ username });
 
+        console.log(`db users findOne found=${Boolean(user)}`);
+
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -33,6 +35,10 @@ const searchPoliciesByUsername = async (req, res) => {
             .populate("userId")
             .populate("categoryId")
             .populate("carrierId");
+
+        console.log(
+            `db policies find page=${page} limit=${limit} totalPolicies=${totalPolicies}`
+        );
 
         return res.status(200).json({
             success: true,
@@ -87,6 +93,10 @@ const getPoliciesByUser = async (req, res) => {
         ]);
 
         const totalUsers = facet?.metadata?.[0]?.totalUsers || 0;
+
+        console.log(
+            `db users aggregate page=${page} limit=${limit} totalUsers=${totalUsers}`
+        );
 
         return res.status(200).json({
             success: true,

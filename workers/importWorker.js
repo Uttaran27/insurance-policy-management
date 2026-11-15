@@ -50,6 +50,19 @@ const parseDate = (value, fieldName) => {
 const isDuplicateKey = (error) =>
     error?.code === 11000 || error?.cause?.code === 11000;
 
+const mongoTarget = (mongoUri) => {
+    const parsed = new URL(
+        mongoUri
+            .replace("mongodb+srv://", "https://")
+            .replace("mongodb://", "https://")
+    );
+
+    return {
+        db: mongoose.connection.name,
+        host: parsed.hostname
+    };
+};
+
 const cleanLabel = (value) => value.replace(/\s+/g, " ").trim();
 
 const assignIfPresent = (target, key, value) => {
@@ -159,6 +172,9 @@ const importFile = async () => {
         await mongoose.connect(mongoUri, {
             maxPoolSize: 5
         });
+
+        const target = mongoTarget(mongoUri);
+        console.log(`db import connected db=${target.db} host=${target.host}`);
 
         const workbook = XLSX.readFile(workerData.filePath);
 
@@ -347,6 +363,10 @@ const importFile = async () => {
             }
         }
 
+        console.log(
+            `db import finished totalRecords=${records.length} importedRecords=${importedRecords} failedCount=${failedRows.length}`
+        );
+
         result = {
             success: failedRows.length === 0,
             message:
@@ -377,6 +397,7 @@ const importFile = async () => {
     } finally {
         if (mongoose.connection.readyState !== 0) {
             await mongoose.disconnect();
+            console.log("db import disconnected");
         }
     }
 
