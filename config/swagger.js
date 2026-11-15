@@ -33,6 +33,10 @@ const options = {
 
         servers: [
             {
+                url: "/",
+                description: "Current server"
+            },
+            {
                 url: "https://insurance-policy-management-d6no.onrender.com",
                 description: "Production server (Render)"
             },
